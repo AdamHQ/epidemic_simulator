@@ -1,6 +1,5 @@
 import pygame
 import sys
-import math
 from random import randint
 
 
@@ -24,7 +23,7 @@ MASK_PRICE = 10
 
 # Initialization
 pygame.init()
-screen = pygame.display.set_mode((1280, 720))
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Epidemic Simulator 1.0")
 fps = pygame.time.Clock()
 pause = False
@@ -36,8 +35,8 @@ class Person:
     def __init__(self, x, y):
         self.x = x
         self.y = y
-        self.dx = randint(-1, 1)
-        self.dy = randint(-1, 1)
+        self.dx = randint(-2, 2)
+        self.dy = randint(-2, 2)
         self.illness = 0
         self.immune = 0
         self.mask = False
@@ -115,98 +114,95 @@ def mask(people, pos):
 def draw(people):
     global pause
     _count_infected_people = 0
+    screen.fill((20, 20, 25))
 
-    screen.fill((0, 0, 0))
+    current_day = (time // 60) + 1
+    current_hour = (time % 60) * 24 // 60
 
     for person in people:
-        _mask = 0
+        _mask_thickness = 0
         if person.illness > 0:
             _color = PERSON_COLOR_INFECTED
-            if person.mask:
-                _mask = 5
+            _count_infected_people += 1
         elif person.immune > 0:
             _color = PERSON_COLOR_IMMUNE
-            if person.mask:
-                _mask = 5
         else:
             _color = PERSON_COLOR_CLEAR
-            if person.mask:
-                _mask = 5
+        
+        if person.mask: _mask_thickness = 4
+        pygame.draw.circle(screen, _color, (int(person.x), int(person.y)), PERSON_AURA, _mask_thickness)
 
-        pygame.draw.circle(screen, (_color), (person.x, person.y), PERSON_AURA, _mask)
+    pygame.draw.rect(screen, (40, 40, 50), (0, 0, WIDTH, 50)) # UI Panel background
+    font = pygame.font.SysFont("Consolas", 24)
+    ui_text = f" CASES: {_count_infected_people} | DAY: {current_day} ({current_hour:02}:00) | BUDGET: {BUDGET}$"
+    text_surface = font.render(ui_text, True, (255, 255, 255))
+    screen.blit(text_surface, (20, 12))
 
-        if person.illness > 0:
-            _count_infected_people += 1
+    # --- Legend with Symbols ---
+    legend_font = pygame.font.SysFont("Consolas", 20)
+    r = 10 
+    y_center = 25
+    start_x = 750
 
+    # List of elements: (Color, String, Mask_thickness)
+    legend_items = [
+        (PERSON_COLOR_CLEAR, "CLEAR", 0),
+        (PERSON_COLOR_INFECTED, "INFECTED", 0),
+        (PERSON_COLOR_IMMUNE, "IMMUNE", 0),
+        ((200, 200, 200), "MASK", 3)
+    ]
+
+    for i, (color, label, thickness) in enumerate(legend_items):
+        x_offset = start_x + (i * 130)
+        # Circle
+        pygame.draw.circle(screen, color, (x_offset, y_center), r, thickness)
+        # String
+        l_text = legend_font.render(label, True, (200, 200, 200))
+        screen.blit(l_text, (x_offset + 15, y_center - 7))
+
+    # Victory Screen
     if _count_infected_people == 0:
         pause = True
-        font = pygame.font.SysFont("Calibri", 100)
-        text = font.render("VICTORY!", True, (200, 200, 200))
-        text_rect = text.get_rect()
-        text_rect.center = (WIDTH // 2, HEIGHT // 2)
-        screen.blit(text, text_rect)
-
-
-    font = pygame.font.SysFont("Calibri", 30)
-
-    text = font.render("Actice cases: " + str(_count_infected_people), True, (200, 200, 200))
-    text_rect = text.get_rect()
-    text_rect.left = 10
-    text_rect.top = 10
-    screen.blit(text, text_rect)
-
-    text = font.render("Time: " + str(time), True, (200, 200, 200))
-    text_rect = text.get_rect()
-    text_rect.left = 250
-    text_rect.top = 10
-    screen.blit(text, text_rect)
-
-    text = font.render("Budget: " + str(BUDGET), True, (200, 200, 200))
-    text_rect = text.get_rect()
-    text_rect.left = 450
-    text_rect.top = 10
-    screen.blit(text, text_rect)
-
-    text = font.render("Clear:       Infected:       Immune:       Mask:", True, (200, 200, 200))
-    text_rect = text.get_rect()
-    text_rect.left = 700
-    text_rect.top = 10
-    screen.blit(text, text_rect)
-
-    pygame.draw.circle(screen, (PERSON_COLOR_CLEAR), (795, 23), PERSON_AURA, 0)
-    pygame.draw.circle(screen, (PERSON_COLOR_INFECTED), (950, 23), PERSON_AURA, 0)
-    pygame.draw.circle(screen, (PERSON_COLOR_IMMUNE), (1110, 23), PERSON_AURA, 0)
-    pygame.draw.circle(screen, (PERSON_COLOR_CLEAR), (1230, 23), PERSON_AURA, 5)
+        s = pygame.Surface((WIDTH, HEIGHT))
+        s.set_alpha(180); s.fill((0,0,0)); screen.blit(s, (0,0))
+        
+        v_font = pygame.font.SysFont("Impact", 80)
+        v_text = v_font.render("MISSION ACCOMPLISHED", True, (0, 255, 100))
+        screen.blit(v_text, (WIDTH//2 - v_text.get_width()//2, HEIGHT//2 - 100))
+        
+        stat_font = pygame.font.SysFont("Consolas", 30)
+        stats = [
+            f"Total Days: {current_day}",
+            f"Remaining Budget: {BUDGET}$",
+            "Result: Epidemic Contained"
+        ]
+        for i, line in enumerate(stats):
+            s_surf = stat_font.render(line, True, (200, 200, 200))
+            screen.blit(s_surf, (WIDTH//2 - s_surf.get_width()//2, HEIGHT//2 + 20 + i*40))
 
     pygame.display.update()
     fps.tick(PERSON_SPEED)
 
-
 # Create people
-main_people_list = [Person(randint(50, WIDTH-50), randint(50, HEIGHT-50))
-                   for i in range(NUMBER_OF_PEOPLE)]
+main_people_list = [Person(randint(50, WIDTH-50), randint(100, HEIGHT-50)) for i in range(NUMBER_OF_PEOPLE)]
 
-
-# The fist infection
+# The first infection
 for i in range(FIRST_CONTACT):
     main_people_list[i].illness = ILLNESS_TIME
-
 
 # Main program
 while True:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
-            pygame.quit()
-            sys.exit()
+            pygame.quit(); sys.exit()
         if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_SPACE:
-                pause = not pause
+            if event.key == pygame.K_SPACE: pause = not pause
         if event.type == pygame.MOUSEBUTTONDOWN:
-            if event.button == pygame.BUTTON_LEFT:
-                vaccine(main_people_list, pygame.mouse.get_pos())
-            if event.button == pygame.BUTTON_RIGHT:
-                mask(main_people_list, pygame.mouse.get_pos())
+            if event.button == 1: vaccine(main_people_list, pygame.mouse.get_pos())
+            if event.button == 3: mask(main_people_list, pygame.mouse.get_pos())
+    
     if not pause:
         modify(main_people_list)
-        draw(main_people_list)
         time += 1
+
+    draw(main_people_list)
